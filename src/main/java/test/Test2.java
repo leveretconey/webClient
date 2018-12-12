@@ -55,7 +55,7 @@ class Test2 {
     public static void main(String[] args) throws Exception {
         test();
         Loader.load(opencv_objdetect.class);
-        recorder = new FFmpegFrameRecorder("out.flv", 1366, 768,2);
+        recorder = new FFmpegFrameRecorder("rtmp://me:1935/live/test", 1366, 768,2);
         recorder.setVideoCodec(avcodec.AV_CODEC_ID_H264);
         recorder.setAudioCodec(avcodec.AV_CODEC_ID_AAC);
         recorder.setFormat("flv");
@@ -134,10 +134,11 @@ class Test2 {
         int numChannels = audioFormat.getChannels();
         int audioBufferSize = sampleRate * numChannels;
         byte[] audioBytes = new byte[audioBufferSize];
-        //Mixer mixer=AudioSystem.getMixer(AudioSystem.getMixerInfo()[4]);
-        //TargetDataLine targetDataLine=(TargetDataLine) AudioSystem.getLine(mixer.getTargetLineInfo()[0]);
-        DataLine.Info info=new DataLine.Info(TargetDataLine.class,audioFormat);
-        TargetDataLine line=(TargetDataLine) AudioSystem.getLine(info);
+        Mixer mixer=AudioSystem.getMixer(AudioSystem.getMixerInfo()[2]);
+        TargetDataLine line=(TargetDataLine) AudioSystem.getLine(mixer.getTargetLineInfo()[0]);
+//        DataLine.Info info=new DataLine.Info(TargetDataLine.class,audioFormat);
+//        TargetDataLine line=(TargetDataLine) AudioSystem.getLine(info);
+        line.open();
         line.start();
         Runnable crabAudio = new Runnable() {
             ShortBuffer sBuff = null;
@@ -148,7 +149,7 @@ class Test2 {
             public void run() {
                 try {
                     System.out.println(line.available());
-                    nBytesRead = line.read(audioBytes, 0, Math.min(audioBufferSize,line.available()));
+                    nBytesRead = line.read(audioBytes, 0, line.available());
                     nSamplesRead = nBytesRead / 2;
                     short[] samples = new short[nSamplesRead];
                     ByteBuffer.wrap(audioBytes).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(samples);
