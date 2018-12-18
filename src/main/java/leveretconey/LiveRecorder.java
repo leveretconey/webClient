@@ -18,7 +18,6 @@ public class LiveRecorder {
     private SoundThread soundThread;
     private FFmpegFrameRecorder recorder;
     private long startTimestamp;
-    private int width,height;
     private FrameUpdateListener updateListener;
     public LiveRecorder(String output){
         this(output,640,480);
@@ -54,6 +53,7 @@ public class LiveRecorder {
         catch (RecorderException e){
             throw e;
         } catch (FrameRecorder.Exception e) {
+            e.printStackTrace();
             throw new RecorderException("unable to start recorder");
         }
     }

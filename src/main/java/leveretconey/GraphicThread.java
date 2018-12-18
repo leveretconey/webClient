@@ -37,7 +37,8 @@ class GraphicThread  extends GrabberThread {
     @Override
     void start() throws RecorderException{
         super.start();
-        grabber.start();
+        if(grabber!=null)
+            grabber.start();
         Runnable runnable = ()->{
             while (!isStop()){
                 try {
@@ -60,14 +61,22 @@ class GraphicThread  extends GrabberThread {
                 }
             }
             try {
-                grabber.stop();
+                if (grabber!=null)
+                    grabber.stop();
             }
             catch (RecorderException e){
             }
         };
         new Thread(runnable).start();
     }
+    @SuppressWarnings("all")
     void setGraphicSource(LiveRecorder.GraphicSource graphicSource){
-        grabber=getGrabber(graphicSource);
+        try {
+            if(grabber!=null)
+                grabber.stop();
+            grabber=getGrabber(graphicSource);
+        }catch (RecorderException e){
+            grabber=null;
+        }
     }
 }

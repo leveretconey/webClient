@@ -56,7 +56,8 @@ class ScreenGraphicGrabber extends GraphicGrabber {
 
     @Override
     void stop() {
-        mat.release();
+        if(mat!=null)
+            mat.release();
     }
 
     /*

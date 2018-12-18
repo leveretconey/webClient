@@ -17,7 +17,7 @@ class CameraGraphicGrabber extends GraphicGrabber {
             grabber=new OpenCVFrameGrabber(WEBCAM_DEVICE_INDEX);
             grabber.start();
         }catch (Exception e){
-            throw new RecorderException("unable to start graphic thread");
+            throw new RecorderException("unable to get camera grabber");
         }
     }
     @Override

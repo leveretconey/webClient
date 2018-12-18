@@ -1,6 +1,6 @@
 package leveretconey;
 
-class RecorderException extends Exception {
+public class RecorderException extends Exception {
     RecorderException(){}
     RecorderException(String message){
         super(message);

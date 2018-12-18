@@ -29,7 +29,8 @@ class SoundThread  extends GrabberThread {
     @Override
     void start() throws RecorderException{
         super.start();
-        grabber.start();
+        if (grabber!=null)
+            grabber.start();
         Runnable runnable = ()->{
             while (!isStop()){
                 try {
@@ -48,15 +49,23 @@ class SoundThread  extends GrabberThread {
                 }
             }
             try {
-                grabber.stop();
+                if(grabber!=null)
+                    grabber.stop();
             }
             catch (RecorderException e){
             }
         };
         new Thread(runnable).start();
     }
+    @SuppressWarnings("all")
     void setSoundSource(LiveRecorder.SoundSource soundSource){
-        grabber=getGrabber(soundSource);
+        try {
+            if(grabber!=null)
+                grabber.stop();
+            grabber=getGrabber(soundSource);
+        }catch (RecorderException e){
+            grabber=null;
+        }
     }
 
 }
