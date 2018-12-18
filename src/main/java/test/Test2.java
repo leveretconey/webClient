@@ -1,5 +1,7 @@
 package test;
 
+import com.sun.xml.internal.ws.commons.xmlutil.Converter;
+
 import org.bytedeco.javacpp.Loader;
 import org.bytedeco.javacpp.avcodec;
 import org.bytedeco.javacpp.opencv_core;
@@ -7,6 +9,7 @@ import org.bytedeco.javacpp.opencv_objdetect;
 import org.bytedeco.javacv.FFmpegFrameGrabber;
 import org.bytedeco.javacv.FFmpegFrameRecorder;
 import org.bytedeco.javacv.Frame;
+import org.bytedeco.javacv.FrameConverter;
 import org.bytedeco.javacv.FrameGrabber;
 import org.bytedeco.javacv.FrameRecorder;
 import org.bytedeco.javacv.Java2DFrameConverter;
@@ -32,6 +35,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.ShortBuffer;
 import java.nio.charset.Charset;
+import java.util.List;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -48,26 +52,34 @@ import javax.sound.sampled.SourceDataLine;
 import javax.sound.sampled.TargetDataLine;
 import static org.bytedeco.javacpp.opencv_imgcodecs.cvLoadImage;
 import static org.bytedeco.javacpp.opencv_imgcodecs.imread;
+import static org.bytedeco.javacv.Frame.DEPTH_SHORT;
 
 class Test2 {
     static  FFmpegFrameRecorder recorder;
-
+    static long starttime=0;
     public static void main(String[] args) throws Exception {
         test();
         Loader.load(opencv_objdetect.class);
         recorder = new FFmpegFrameRecorder("rtmp://me:1935/live/test", 1366, 768,2);
+        recorder.setInterleaved(true);
+        recorder.setVideoOption("tune", "zerolatency");
+        recorder.setVideoOption("preset", "ultrafast");
+        recorder.setVideoOption("crf", "25");
+        recorder.setVideoBitrate(2000000);
         recorder.setVideoCodec(avcodec.AV_CODEC_ID_H264);
-        recorder.setAudioCodec(avcodec.AV_CODEC_ID_AAC);
         recorder.setFormat("flv");
         recorder.setFrameRate(25);
-        recorder.start();//开启录制器
+        recorder.setGopSize(25 * 2);
+        recorder.setAudioOption("crf", "0");
+        recorder.setAudioQuality(0);
+        recorder.setAudioBitrate(192000);
+        recorder.setSampleRate(44100);
+        recorder.setAudioChannels(2);
+        recorder.setAudioCodec(avcodec.AV_CODEC_ID_AAC);
+        recorder.start();
 
-//        picExperiment();
-
-        ScheduledThreadPoolExecutor exec = new ScheduledThreadPoolExecutor(1);
-        Runnable crabAudio = catchAudio(4, 25);//对应上面的方法体
-        ScheduledFuture tasker = exec.scheduleAtFixedRate(crabAudio, 0, (long) 1000 / 25,
-                TimeUnit.MILLISECONDS);
+        picExperiment();
+        catchAudio();
         while (true);
     }
     static void test(){
@@ -88,17 +100,13 @@ class Test2 {
         System.exit(1);
     }
     static void picExperiment() throws Exception{
-        Runnable runnable = new Runnable() {
-            public void run() {
-
+        Runnable runnable = ()-> {
                 try {
-
                     OpenCVFrameConverter.ToIplImage converter = new OpenCVFrameConverter.ToIplImage();//转换器
                     int width = 1366;
                     int height = 768;
                     Robot robot=new Robot();
                     Rectangle rectangle=new Rectangle(width,height);
-                    long startTime=0;
                     long videoTS=0;
                     Frame rotatedFrame;
                     while (true) {
@@ -108,11 +116,11 @@ class Test2 {
                         ImageIO.write(bi,format,file);
                         opencv_core.Mat image=imread("out."+format);
                         rotatedFrame=converter.convert(image);
-                        if (startTime == 0) {
-                            startTime = System.currentTimeMillis();
+                        if (starttime == 0) {
+                            starttime = System.currentTimeMillis();
                         }
 
-                        videoTS = 1000 * (System.currentTimeMillis() - startTime);
+                        videoTS = 1000 * (System.currentTimeMillis() - starttime);
                         recorder.setTimestamp(videoTS);
                         recorder.record(rotatedFrame);
                         image.release();
@@ -122,53 +130,52 @@ class Test2 {
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-            }
         };
         runnable.run();
     }
-    static Runnable catchAudio(int unknown,int framerate)throws Exception{
-        AudioFormat audioFormat =
-                new AudioFormat(AudioFormat.Encoding.PCM_SIGNED,44100F, 16, 2, 4,
-                        44100F, true);
-        int sampleRate = (int) audioFormat.getSampleRate();
-        int numChannels = audioFormat.getChannels();
-        int audioBufferSize = sampleRate * numChannels;
-        byte[] audioBytes = new byte[audioBufferSize];
-        Mixer mixer=AudioSystem.getMixer(AudioSystem.getMixerInfo()[2]);
-        TargetDataLine line=(TargetDataLine) AudioSystem.getLine(mixer.getTargetLineInfo()[0]);
-//        DataLine.Info info=new DataLine.Info(TargetDataLine.class,audioFormat);
-//        TargetDataLine line=(TargetDataLine) AudioSystem.getLine(info);
-        line.open();
-        line.start();
-        Runnable crabAudio = new Runnable() {
-            ShortBuffer sBuff = null;
-            int nBytesRead;
-            int nSamplesRead;
+    @SuppressWarnings("all")
+    static void catchAudio()throws Exception{
+            try {
+                AudioFormat audioFormat =
+                        new AudioFormat(AudioFormat.Encoding.PCM_SIGNED,44100F, 16, 2, 4,
+                                44100F, true);
+                int sampleRate = (int) audioFormat.getSampleRate();
+                int numChannels = audioFormat.getChannels();
+                int audioBufferSize = sampleRate * numChannels;
+                byte[] audioBytes = new byte[audioBufferSize];
+                Mixer mixer=AudioSystem.getMixer(AudioSystem.getMixerInfo()[2]);
+                TargetDataLine line=(TargetDataLine) AudioSystem.getLine(mixer.getTargetLineInfo()[0]);
+                line.open(audioFormat,audioBufferSize);
+                line.start();
 
-            @Override
-            public void run() {
-                try {
-                    System.out.println(line.available());
-                    nBytesRead = line.read(audioBytes, 0, line.available());
-                    nSamplesRead = nBytesRead / 2;
-                    short[] samples = new short[nSamplesRead];
-                    ByteBuffer.wrap(audioBytes).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(samples);
-                    sBuff = ShortBuffer.wrap(samples, 0, nSamplesRead);
-                    recorder.recordSamples(sampleRate, numChannels, sBuff);
-                    System.out.println("sent");
-                }
-                catch (Exception e){e.printStackTrace();};
+                ShortBuffer sBuff = null;
+                int nBytesRead;
+                int nSamplesRead;
+                ScheduledThreadPoolExecutor exec = new ScheduledThreadPoolExecutor(1);
+                exec.scheduleAtFixedRate(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            System.out.println(line.available());
+                            int nBytesRead = line.read(audioBytes, 0, line.available());
+                            int nSamplesRead = nBytesRead / 2;
+                            short[] samples = new short[nSamplesRead];
+                            ByteBuffer.wrap(audioBytes).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(samples);
+                            ShortBuffer sBuff = ShortBuffer.wrap(samples, 0, nSamplesRead);
+                            if (starttime == 0) {
+                                starttime = System.currentTimeMillis();
+                            }
 
+                            long videoTS = 1000 * (System.currentTimeMillis() - starttime);
+                            recorder.setTimestamp(videoTS);
+                            recorder.recordSamples(sampleRate, numChannels, sBuff);
+                        } catch (FrameRecorder.Exception e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }, 0, (long) 1000 / 25, TimeUnit.MILLISECONDS);
+            } catch (Exception e) {
+                e.printStackTrace();
             }
-
-            @Override
-            protected void finalize() throws Throwable {
-                sBuff.clear();
-                sBuff = null;
-                super.finalize();
-            }
-        };
-        return crabAudio;
-
-    }
+        }
 }

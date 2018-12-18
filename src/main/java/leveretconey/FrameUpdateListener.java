@@ -1,0 +1,4 @@
+package leveretconey;
+
+class FrameUpdateListener {
+}

@@ -1,8 +1,12 @@
 package leveretconey;
 
-abstract class GraphicThread {
-    abstract int getWidth();
-    abstract int getHeight();
-    abstract void start();
-    abstract void stop();
+import org.bytedeco.javacv.Frame;
+
+abstract class SoundThread {
+    void start(){
+
+    }
+    void stop(){
+
+    }
 }

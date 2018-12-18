@@ -25,16 +25,14 @@ import javax.sound.sampled.TargetDataLine;
 class Test3 {
     public static void main(String[] args) throws Exception {
         Loader.load(opencv_objdetect.class);
-        recordWebcamAndMicrophone(0,4,"rtmp://me:1935/live/test",1366,768,25);
+        recordWebcamAndMicrophone(0,4,
+                "rtmp://me:1935/live/test",640,480,25);
     }
     public static void recordWebcamAndMicrophone(int WEBCAM_DEVICE_INDEX, int AUDIO_DEVICE_INDEX, String outputFile,
                                                  int captureWidth, int captureHeight, int FRAME_RATE) throws Exception {
-        long startTime = 0;
-        long videoTS = 0;
         OpenCVFrameGrabber grabber = new OpenCVFrameGrabber(WEBCAM_DEVICE_INDEX);
         grabber.setImageWidth(captureWidth);
         grabber.setImageHeight(captureHeight);
-        System.out.println("开始抓取摄像头...");
         grabber.start();
         FFmpegFrameRecorder recorder = new FFmpegFrameRecorder(outputFile, captureWidth, captureHeight, 2);
         recorder.setInterleaved(true);
@@ -53,12 +51,11 @@ class Test3 {
         recorder.setAudioChannels(2);
         recorder.setAudioCodec(avcodec.AV_CODEC_ID_AAC);
         recorder.start();
-        new Thread(new Runnable() {
+        final long startTime = System.currentTimeMillis();
+        Runnable runnable=new Runnable() {
             @Override
             public void run() {
                 AudioFormat audioFormat = new AudioFormat(44100.0F, 16, 2, true, false);
-                Mixer.Info[] minfoSet = AudioSystem.getMixerInfo();
-                Mixer mixer = AudioSystem.getMixer(minfoSet[AUDIO_DEVICE_INDEX]);
                 DataLine.Info dataLineInfo = new DataLine.Info(TargetDataLine.class, audioFormat);
                 try {
                     TargetDataLine line = (TargetDataLine) AudioSystem.getLine(dataLineInfo);
@@ -79,6 +76,10 @@ class Test3 {
                                 short[] samples = new short[nSamplesRead];
                                 ByteBuffer.wrap(audioBytes).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(samples);
                                 ShortBuffer sBuff = ShortBuffer.wrap(samples, 0, nSamplesRead);
+                                long videoTS = 1000 * (System.currentTimeMillis() - startTime);
+                                if (videoTS > recorder.getTimestamp()) {
+                                    recorder.setTimestamp(videoTS);
+                                }
                                 recorder.recordSamples(sampleRate, numChannels, sBuff);
                             } catch (FrameRecorder.Exception e) {
                                 e.printStackTrace();
@@ -89,26 +90,20 @@ class Test3 {
                     e1.printStackTrace();
                 }
             }
-        }).start();
+        };
         CanvasFrame cFrame = new CanvasFrame("Capture Preview", CanvasFrame.getDefaultGamma() / grabber.getGamma());
         Frame capturedFrame = null;
+        new Thread(runnable).start();
+
         while ((capturedFrame = grabber.grab()) != null) {
             if (cFrame.isVisible()) {
                 cFrame.showImage(capturedFrame);
             }
-            if (startTime == 0)
-                startTime = System.currentTimeMillis();
-            videoTS = 1000 * (System.currentTimeMillis() - startTime);
+            long videoTS = 1000 * (System.currentTimeMillis() - startTime);
             if (videoTS > recorder.getTimestamp()) {
-                System.out.println("Lip-flap correction: " + videoTS + " : " + recorder.getTimestamp() + " -> "
-                        + (videoTS - recorder.getTimestamp()));
                 recorder.setTimestamp(videoTS);
             }
-            try {
-                recorder.record(capturedFrame);
-            } catch (org.bytedeco.javacv.FrameRecorder.Exception e) {
-                System.out.println("录制帧发生异常，什么都不做");
-            }
+            recorder.record(capturedFrame);
         }
         cFrame.dispose();
         recorder.stop();
