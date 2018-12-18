@@ -24,4 +24,7 @@ abstract class GrabberThread {
         if(startTimestamp==0)
             throw new RecorderException("timestamp not set");
     }
+    protected long getStartTimestamp(){
+        return 1000 * (System.currentTimeMillis() - startTimestamp);
+    }
 }

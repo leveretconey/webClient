@@ -2,6 +2,7 @@ package leveretconey;
 
 import org.bytedeco.javacpp.avcodec;
 import org.bytedeco.javacv.FFmpegFrameRecorder;
+import org.bytedeco.javacv.Frame;
 import org.bytedeco.javacv.FrameRecorder;
 
 public class LiveRecorder {
@@ -18,6 +19,7 @@ public class LiveRecorder {
     private FFmpegFrameRecorder recorder;
     private long startTimestamp;
     private int width,height;
+    private FrameUpdateListener updateListener;
     public LiveRecorder(String output){
         this(output,640,480);
     }
@@ -60,6 +62,7 @@ public class LiveRecorder {
             graphicThread.stop();
         graphicThread =new GraphicThread(graphicSource,recorder);
         graphicThread.setStartTimestamp(startTimestamp);
+        graphicThread.setUpdateListener(updateListener);
         try {
             graphicThread.start();
         }catch (Exception e){
@@ -67,18 +70,17 @@ public class LiveRecorder {
             throw new RecorderException("unable to start graph thread");
         }
     }
-    private void startSound(){
-        //todo
-//        if(soundSource ==null){
-//            return;
-//        }
-//        soundThread =SoundThreadFactory.create(soundSource);
-//        try {
-//            soundThread.start();
-//        }catch (Exception e){
-//            soundThread=null;
-//            throw e;
-//        }
+    private void startSound() throws RecorderException{
+        if(soundThread!=null && !soundThread.isStop())
+            soundThread.stop();
+        soundThread =new SoundThread(soundSource,recorder);
+        soundThread.setStartTimestamp(startTimestamp);
+        try {
+            soundThread.start();
+        }catch (Exception e){
+            soundThread=null;
+            throw new RecorderException("unable to start sound thread");
+        }
     }
     private void stopGraph(){
         if(graphicThread!=null)
@@ -111,6 +113,15 @@ public class LiveRecorder {
 
     public void setSoundSource(SoundSource soundSource) {
         this.soundSource = soundSource;
+        if(soundThread!=null)
+            soundThread.setSoundSource(soundSource);
     }
 
+    public void setUpdateListener(FrameUpdateListener updateListener) {
+        this.updateListener = updateListener;
+        if(graphicThread!=null)
+            graphicThread.setUpdateListener(updateListener);
+    }
 }
+
+

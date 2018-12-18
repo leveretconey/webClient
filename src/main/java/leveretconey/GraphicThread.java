@@ -9,6 +9,12 @@ class GraphicThread  extends GrabberThread {
         super(recorder);
         this.grabber= getGrabber(graphicSource);
     }
+    private FrameUpdateListener updateListener;
+
+    public void setUpdateListener(FrameUpdateListener updateListener) {
+        this.updateListener = updateListener;
+    }
+
     private GraphicGrabber getGrabber(LiveRecorder.GraphicSource graphicSource){
         if(graphicSource==null)
             return null;
@@ -31,9 +37,6 @@ class GraphicThread  extends GrabberThread {
     @Override
     void start() throws RecorderException{
         super.start();
-        if(grabber==null) {
-            return;
-        }
         grabber.start();
         Runnable runnable = ()->{
             while (!isStop()){
@@ -45,7 +48,9 @@ class GraphicThread  extends GrabberThread {
                     Frame frame=grabber.getFrame();
                     if(frame==null)
                         continue;
-                    long timestamp = 1000 * (System.currentTimeMillis() - startTimestamp);
+                    if(updateListener!=null)
+                        updateListener.onUpdateFrame(frame);
+                    long timestamp = getStartTimestamp();
                     synchronized (recorder) {
                         recorder.setTimestamp(timestamp);
                         recorder.record(frame);
@@ -65,5 +70,4 @@ class GraphicThread  extends GrabberThread {
     void setGraphicSource(LiveRecorder.GraphicSource graphicSource){
         grabber=getGrabber(graphicSource);
     }
-
 }
