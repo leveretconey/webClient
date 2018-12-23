@@ -4,6 +4,8 @@ import org.bytedeco.javacv.FFmpegFrameRecorder;
 import org.bytedeco.javacv.Frame;
 
 import java.nio.ShortBuffer;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 class SoundThread  extends GrabberThread {
     private SoundGrabber grabber;
@@ -38,14 +40,17 @@ class SoundThread  extends GrabberThread {
                         Thread.sleep(1);
                         continue;
                     }
+
                     ShortBuffer buffer=grabber.getSample();
                     long timestamp = getStartTimestamp();
                     synchronized (recorder) {
                         recorder.setTimestamp(timestamp);
                         recorder.recordSamples(buffer);
                     }
+                    Thread.sleep(30);
                 }
                 catch (Exception e) {
+                    e.printStackTrace();
                 }
             }
             try {

@@ -24,7 +24,7 @@ public class LiveRecorder {
     }
     public LiveRecorder(String output,int width,int height){
         recorder = new FFmpegFrameRecorder(output, 2);
-        recorder.setInterleaved(true);
+        recorder.setInterleaved(false);
         recorder.setVideoOption("tune", "zerolatency");
         recorder.setVideoOption("preset", "ultrafast");
         recorder.setVideoOption("crf", "25");

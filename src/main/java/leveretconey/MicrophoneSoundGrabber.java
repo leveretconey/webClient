@@ -6,6 +6,7 @@ import java.nio.ShortBuffer;
 
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.DataLine;
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.Mixer;
 import javax.sound.sampled.TargetDataLine;
@@ -18,14 +19,16 @@ class MicrophoneSoundGrabber extends SoundGrabber{
 
     MicrophoneSoundGrabber() throws RecorderException{
         try {
-            audioFormat = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED,44100F, 16, 2, 4,
-                            44100F, true);
+            //todo
+            audioFormat = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED,44100F,
+                    16, 2, 4,
+                            44100F, false);
             int sampleRate = (int) audioFormat.getSampleRate();
             int numChannels = audioFormat.getChannels();
             audioBufferSize = sampleRate * numChannels;
             audioBytes = new byte[audioBufferSize];
-            Mixer mixer= AudioSystem.getMixer(AudioSystem.getMixerInfo()[2]);
-            line=(TargetDataLine) AudioSystem.getLine(mixer.getTargetLineInfo()[0]);
+            DataLine.Info dataLineInfo = new DataLine.Info(TargetDataLine.class, audioFormat);
+            line = (TargetDataLine) AudioSystem.getLine(dataLineInfo);
 
         }
         catch (LineUnavailableException e){
@@ -50,9 +53,11 @@ class MicrophoneSoundGrabber extends SoundGrabber{
 
     @Override
     ShortBuffer getSample() {
+
         int nBytesRead = line.read(audioBytes, 0, line.available());
         int nSamplesRead = nBytesRead / 2;
         short[] samples = new short[nSamplesRead];
+        //todo
         ByteBuffer.wrap(audioBytes).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(samples);
         ShortBuffer sBuff = ShortBuffer.wrap(samples, 0, nSamplesRead);
         return sBuff;
